@@ -1,0 +1,256 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+**JHipster Common Module Structure Overview**
+
+This document provides a detailed overview of the Common module structure in the JHipster-generated project. The Common module serves as a shared library providing reusable functionality across multiple microservices in the booking system.
+
+## Technology Stack
+
+The Common module is built with the following key technologies:
+
+1. **Java**: Core programming language
+2. **Spring Framework**: For dependency injection and core functionality
+3. **Spring Boot**: For auto-configuration and application setup
+4. **Spring Security**: For authentication and authorization utilities
+5. **Spring Cloud**: For microservice communication patterns
+6. **OpenFeign**: For declarative REST client creation
+7. **Lombok**: For reducing boilerplate code
+8. **Jackson**: For JSON serialization/deserialization
+9. **Apache Commons**: For utility functions
+10. **AWS SDK**: For AWS service integration (notably S3)
+11. **PDFBox**: For PDF generation and manipulation
+12. **Sentry**: For error tracking and monitoring
+
+## Directory Structure Tree
+
+```
+common/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── vn/leap/booking1a/common/
+│   │   │       ├── additionalService/    # Additional service components
+│   │   │       ├── annotations/          # Custom annotations
+│   │   │       ├── aop/                  # Aspect-oriented programming components
+│   │   │       ├── client/               # API client interfaces and implementations
+│   │   │       ├── config/               # Configuration classes
+│   │   │       ├── constants/            # Constant definitions
+│   │   │       ├── context/              # Context objects for request/response
+│   │   │       ├── domain/               # Domain model objects
+│   │   │       │   ├── ancillary/        # Ancillary service domain objects
+│   │   │       │   ├── enumeration/      # Enumerations for domain models
+│   │   │       │   └── managements/      # Management domain objects
+│   │   │       ├── dto/                  # Data Transfer Objects
+│   │   │       │   ├── booking/          # Booking-related DTOs
+│   │   │       │   ├── flightoffer/      # Flight offer DTOs
+│   │   │       │   ├── hoteloffer/       # Hotel offer DTOs
+│   │   │       │   ├── order/            # Order-related DTOs
+│   │   │       │   ├── payment/          # Payment-related DTOs
+│   │   │       │   ├── shared/           # Shared/common DTOs
+│   │   │       │   └── user/             # User-related DTOs
+│   │   │       ├── exception/            # Custom exception classes
+│   │   │       ├── filter/               # Request/response filters
+│   │   │       ├── handler/              # Generic handlers (error, events)
+│   │   │       ├── processor/            # Data processors
+│   │   │       ├── properties/           # Configuration properties
+│   │   │       ├── security/             # Security utilities and configurations
+│   │   │       ├── service/              # Shared services
+│   │   │       ├── test/                 # Test utilities
+│   │   │       ├── utils/                # Utility classes
+│   │   │       └── web/                  # Web-related components (controllers, REST)
+│   │   └── resources/
+│   │       └── fonts/                    # Fonts for PDF generation
+│   └── test/                             # Test code
+├── pom.xml                               # Maven configuration
+└── .openapi-generator-ignore             # OpenAPI generator configuration
+```
+
+## Key Components
+
+### 1. Domain Model (`common/domain/`)
+
+The domain model package contains core business entities shared across microservices:
+
+- **Base Entities**: Core domain objects representing business entities
+- **Enumerations**: Type-safe enumerations for domain concepts
+- **Value Objects**: Immutable objects representing values in the domain
+
+### 2. Data Transfer Objects (`common/dto/`)
+
+DTOs facilitate data exchange between microservices and with clients:
+
+- **Booking DTOs**: Objects for booking data transfer
+- **Flight Offer DTOs**: Flight search and offer representations
+- **Hotel Offer DTOs**: Hotel search and offer representations
+- **Payment DTOs**: Payment-related data structures
+- **Shared DTOs**: Common data structures used across multiple domains
+- **User DTOs**: User-related data structures
+
+### 3. Utility Classes (`common/utils/`)
+
+Extensive collection of utility classes providing reusable functionality:
+
+- **DateUtils**: Date manipulation and formatting utilities
+- **StringUtils**: String processing and manipulation
+- **JsonUtils**: JSON serialization/deserialization utilities
+- **FlightOfferUtils**: Flight offer processing utilities
+- **PriceUtils**: Price calculation utilities
+- **FileUtils**: File handling utilities
+- **PdfUtils**: PDF generation and manipulation utilities
+- **SecurityUtils**: Security-related helper methods
+- **ValidationUtils**: Input validation utilities
+
+### 4. Security Components (`common/security/`)
+
+Security-related components shared across services:
+
+- **Authentication Utilities**: Helper methods for authentication
+- **Authorization Utilities**: Role and permission checking
+- **Security Configuration**: Shared security configurations
+- **JWT Utilities**: JWT token processing
+
+### 5. Client Interfaces (`common/client/`)
+
+API client interfaces for microservice communication:
+
+- **Feign Clients**: Declarative REST clients
+- **Client Configurations**: Client connection configurations
+- **Fallback Implementations**: Circuit breaker fallbacks
+
+### 6. Exception Handling (`common/exception/`)
+
+Common exception types and handling mechanisms:
+
+- **Business Exceptions**: Domain-specific exceptions
+- **Technical Exceptions**: Infrastructure and technical issues
+- **Global Exception Handlers**: Centralized exception handling
+
+### 7. Configuration (`common/config/`)
+
+Shared configuration classes:
+
+- **Web Configurations**: Common web settings
+- **Security Configurations**: Shared security settings
+- **Client Configurations**: API client configurations
+- **Cache Configurations**: Caching strategies
+
+### 8. Web Components (`common/web/`)
+
+Web-related utilities and components:
+
+- **REST Utilities**: Helpers for REST endpoints
+- **Request/Response Processors**: Pre/post processing
+- **Controller Advice**: Common controller advice
+
+## Dependency Overview
+
+The Common module has the following key dependencies:
+
+1. **Spring Framework**
+   - `spring-boot-starter-web`: Web application support
+   - `spring-boot-starter-oauth2-client`: OAuth2 client support
+   - `spring-boot-starter-oauth2-resource-server`: OAuth2 resource server
+   - `spring-boot-starter-cache`: Caching support
+   - `spring-retry`: Retry functionality
+
+2. **Spring Cloud**
+   - `spring-cloud-starter-openfeign`: For declarative REST clients
+   - `feign-reactor-webclient`: Reactive feign client support
+   - `feign-reactor-cloud`: Cloud integration for feign
+
+3. **Data Processing**
+   - `gson`: JSON processing
+   - `jackson-databind-nullable`: Nullable support for Jackson
+   - `commons-collections4`: Advanced collection utilities
+   - `commons-text`: Text processing utilities
+
+4. **Documentation**
+   - `swagger-parser`: Swagger/OpenAPI parsing
+   - `swagger-annotations`: OpenAPI annotations
+   - `springdoc-openapi-webmvc-core`: OpenAPI documentation
+
+5. **Security**
+   - `java-jwt`: JWT token handling
+   - `spring-security-test`: Security testing utilities
+
+6. **Infrastructure**
+   - `sentry-spring-boot-starter`: Error tracking and monitoring
+   - AWS SDK components for S3 and other AWS services
+
+7. **PDF Processing**
+   - `pdfbox`: PDF generation and manipulation
+   - `qrcodegen`: QR code generation for PDFs
+
+## Common Functionalities
+
+The Common module provides several key functionalities that are shared across services:
+
+1. **Data Conversion**
+   - DTO-to-Entity mapping utilities
+   - JSON serialization/deserialization
+   - Date/time format conversions
+
+2. **Security Utilities**
+   - Authentication helpers
+   - Authorization checking
+   - JWT token processing
+   - Role-based security utilities
+
+3. **Integration Patterns**
+   - Feign client abstractions
+   - Service-to-service communication
+   - Event handling
+
+4. **Exception Handling**
+   - Standardized exception types
+   - Global exception handling mechanisms
+   - Error response formatting
+
+5. **PDF Generation**
+   - Ticket generation utilities
+   - Document templating
+   - PDF manipulation
+
+6. **Validation**
+   - Input validation utilities
+   - Business rule validation
+   - Data integrity checks
+
+7. **Configuration Management**
+   - Environment-specific configuration
+   - Feature flag support
+   - Shared application properties
+
+## Best Practices
+
+The Common module follows several best practices for shared libraries:
+
+1. **API Design**
+   - Clean, well-defined interfaces
+   - Immutable DTOs where possible
+   - Consistent naming conventions
+
+2. **Testing**
+   - Comprehensive unit testing
+   - Test utilities for other modules
+   - Mock objects for testing
+
+3. **Dependency Management**
+   - Clear version management
+   - Minimal transitive dependencies
+   - Proper scoping of dependencies
+
+4. **Documentation**
+   - Javadoc for public APIs
+   - OpenAPI annotations
+   - Example usage patterns
+
+5. **Security**
+   - Secure by default patterns
+   - Authentication/authorization utilities
+   - Input validation and sanitization
+
+This overview provides a comprehensive guide to the Java Common module structure, its organization, and shared functionality within the JHipster-generated project.

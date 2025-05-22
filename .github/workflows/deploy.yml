@@ -1,0 +1,50 @@
+name: Deploy to Heroku
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+  HEROKU_APP_NAME: leap-donate
+  SLACK_APP_TOKEN: ${{ secrets.SLACK_APP_TOKEN }}
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+  SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+  JDBC_DATABASE_URL: ${{ secrets.JDBC_DATABASE_URL }}
+  JDBC_DATABASE_USERNAME: ${{ secrets.JDBC_DATABASE_USERNAME }}
+  JDBC_DATABASE_PASSWORD: ${{ secrets.JDBC_DATABASE_PASSWORD }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Build with Maven
+        run: ./mvnw clean package -DskipTests
+
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
+          appdir: "."
+          procfile: "web: java -jar target/*.jar"
+          healthcheck: "https://${{ secrets.HEROKU_APP_NAME }}.herokuapp.com/actuator/health"
+          checkstring: "UP"
+          delay: 20
+          env: |
+            SLACK_APP_TOKEN=${{ secrets.SLACK_APP_TOKEN }}
+            SLACK_BOT_TOKEN=${{ secrets.SLACK_BOT_TOKEN }}
+            SLACK_SIGNING_SECRET=${{ secrets.SLACK_SIGNING_SECRET }}
+            JDBC_DATABASE_URL=${{ secrets.JDBC_DATABASE_URL }}
+            JDBC_DATABASE_USERNAME=${{ secrets.JDBC_DATABASE_USERNAME }}
+            JDBC_DATABASE_PASSWORD=${{ secrets.JDBC_DATABASE_PASSWORD }}

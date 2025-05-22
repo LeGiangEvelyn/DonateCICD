@@ -1,0 +1,202 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+**JHipster Project Structure Overview**
+
+JHipster is a development platform to quickly generate, develop, and deploy modern web applications and microservice architectures. This project follows JHipster's architecture patterns with Spring Boot backend services and Angular frontend applications.
+
+## Architecture Overview
+
+The project follows a microservices architecture with the following key components:
+
+1. **Backend Services**: Java Spring Boot microservices with REST APIs
+2. **Frontend Applications**: Angular-based web applications
+3. **Infrastructure**: Docker-based deployment with services like Kafka, ELK stack, monitoring tools
+4. **API Gateway**: Centralized routing and authentication
+5. **Authentication**: OAuth2/Keycloak for secure authentication
+6. **Database**: Relational databases with Liquibase for schema migrations
+7. **Messaging**: Kafka for event-driven communication between services
+
+## Directory Structure Tree
+
+```
+booking1a/
+├── gateway/                    # API Gateway service (Spring Cloud Gateway)
+├── flights/                    # Flight microservice
+│   ├── src/                    # Source code
+│   │   ├── main/
+│   │   │   ├── java/vn/leap/booking1a/flights/
+│   │   │   │   ├── config/           # Application configurations
+│   │   │   │   ├── domain/           # JPA entities
+│   │   │   │   ├── repository/       # Spring Data repositories
+│   │   │   │   ├── service/          # Business logic services
+│   │   │   │   │   ├── impl/         # Service implementations
+│   │   │   │   │   └── dto/          # Data Transfer Objects
+│   │   │   │   ├── web/              # REST controllers
+│   │   │   │   │   └── rest/         # REST API endpoints
+│   │   │   │   ├── security/         # Security configurations
+│   │   │   │   └── FlightsApp.java   # Application entry point
+│   │   │   └── resources/
+│   │   │       ├── config/           # Application properties
+│   │   │       │   ├── liquibase/    # Database migrations
+│   │   │       │   └── application.yml # Application configuration
+│   │   │       ├── i18n/             # Internationalization files
+│   │   │       └── static/           # Static resources
+│   │   └── test/                     # Test code
+│   ├── webpack/                      # Webpack configuration
+│   └── pom.xml                       # Maven configuration
+├── fronts/                           # Main frontend application
+│   ├── src/
+│   │   └── main/
+│   │       └── webapp/
+│   │           ├── app/
+│   │           │   ├── config/       # App configuration
+│   │           │   ├── core/         # Core modules, guards, interceptors
+│   │           │   ├── entities/     # Entity components
+│   │           │   ├── home/         # Home page component
+│   │           │   ├── layouts/      # Layout components
+│   │           │   ├── pages/        # Page components
+│   │           │   ├── shared/       # Shared components, directives, pipes
+│   │           │   ├── app.module.ts # Main Angular module
+│   │           │   └── app-routing.module.ts # Routing configuration
+│   │           ├── content/          # Static content (images, fonts)
+│   │           ├── i18n/             # Internationalization files
+│   │           └── index.html        # Main HTML file
+│   ├── angular.json                  # Angular configuration
+│   ├── package.json                  # NPM configuration
+│   └── tsconfig.json                 # TypeScript configuration
+├── fronts-b2b/                       # B2B frontend application
+├── fronts-corp/                      # Corporate frontend application
+├── fronts-management/                # Management frontend application
+├── docker-compose/                   # Docker Compose configuration
+│   ├── docker-compose.core.yml       # Core services configuration
+│   ├── docker-compose.elk.yml        # ELK stack configuration
+│   ├── docker-compose.kafka.yml      # Kafka configuration
+│   ├── docker-compose.monitor.yml    # Monitoring configuration
+│   └── central-server-config/        # Centralized configuration
+├── keycloak/                         # Keycloak authentication service
+├── notification/                     # Notification service
+├── payment/                          # Payment service
+├── hotels/                           # Hotel booking service
+├── vnr/                              # Vietnam Railroad service
+├── common/                           # Shared libraries and utilities
+└── pom.xml                           # Parent Maven configuration
+```
+
+## Key Components
+
+### Backend (Spring Boot)
+
+1. **Domain Layer**
+   - JPA Entities: Represent database tables with JPA annotations
+   - Repositories: Spring Data interfaces for database operations
+   - DTOs: Data Transfer Objects for request/response transformation
+
+2. **Service Layer**
+   - Service interfaces: Define business methods
+   - Service implementations: Implement business logic
+   - Mappers: Convert between entities and DTOs
+
+3. **Web Layer**
+   - REST Controllers: Expose RESTful APIs
+   - Exception Handling: Global error handling
+   - Security: Authentication and authorization
+
+4. **Configuration**
+   - Application properties: YAML-based configuration
+   - Liquibase: Database migration and version control
+   - Security config: OAuth2, JWT configuration
+
+### Frontend (Angular)
+
+1. **Core Module**
+   - Authentication: Login, session management
+   - Interceptors: HTTP request/response handling
+   - Guards: Route protection
+
+2. **Shared Module**
+   - Components: Reusable UI components
+   - Directives: Custom HTML behaviors
+   - Pipes: Data transformation
+
+3. **Feature Modules**
+   - Entity components: CRUD operations for domain entities
+   - Pages: Application views and forms
+   - Services: HTTP calls to backend APIs
+
+4. **Assets**
+   - i18n: Internationalization resources
+   - Static content: Images, fonts, styles
+
+### Infrastructure
+
+1. **Docker Compose**
+   - Development environment setup
+   - Service orchestration
+   - Environment-specific configurations
+
+2. **Monitoring**
+   - ELK stack: Logging and monitoring
+   - Prometheus/Grafana: Metrics and dashboards
+
+3. **Message Broker**
+   - Kafka: Event-driven communication
+
+## Development Workflow
+
+1. **Code Generation**
+   - JHipster generator for creating entities and CRUD operations
+   - Entity modeling with JDL (JHipster Domain Language)
+
+2. **Database Management**
+   - Liquibase for database schema evolution
+   - Change sets for versioned database changes
+
+3. **Testing**
+   - Unit tests with JUnit and Jest
+   - Integration tests with Spring Test
+   - E2E tests with Protractor/Cypress
+
+4. **Deployment**
+   - Docker-based deployment
+   - CI/CD pipeline configuration
+
+## Best Practices
+
+1. **Backend Development**
+   - Follow RESTful API design principles
+   - Use DTOs for API contracts
+   - Implement proper error handling
+   - Apply security best practices
+
+2. **Frontend Development**
+   - Use Angular's standalone components
+   - Implement lazy loading for feature modules
+   - Apply reactive programming with RxJS
+   - Follow Angular style guide
+
+3. **Database**
+   - Use Liquibase for database migrations
+   - Define proper indexes and constraints
+   - Optimize queries for performance
+
+4. **Security**
+   - OAuth2/OpenID Connect for authentication
+   - JWT for stateless authorization
+   - HTTPS/TLS for secure communication
+
+## Coding Standards
+
+1. **Java**
+   - Follow Spring Boot best practices
+   - Adhere to Java code conventions
+   - Use consistent naming patterns
+
+2. **TypeScript/Angular**
+   - Follow Angular style guide
+   - Use TypeScript interfaces for type safety
+   - Apply proper component composition
+
+This overview provides a comprehensive guide to understanding the JHipster-generated project structure, architecture, and best practices for development.
