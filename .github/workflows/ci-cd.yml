@@ -133,39 +133,70 @@ jobs:
           name: app-jar-17
           path: target/
 
+      - name: Debug - Check downloaded files
+        run: |
+          echo "=== Checking downloaded files ==="
+          ls -la target/
+          echo "JAR file exists: $(test -f target/*.jar && echo 'YES' || echo 'NO')"
+
       - name: Set up SSH key
         run: |
+          echo "=== Setting up SSH key ==="
           mkdir -p ~/.ssh
           echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+          echo "SSH key setup completed"
+
+      - name: Test SSH connection
+        run: |
+          echo "=== Testing SSH connection ==="
+          ssh -i ~/.ssh/id_ed25519 -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} 'echo "SSH connection successful"'
 
       - name: Copy files to server
         run: |
           echo "=== Copying files to server ==="
-          # Copy JAR file
-          scp -i ~/.ssh/id_ed25519 target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          echo "Copying JAR file..."
+          scp -i ~/.ssh/id_ed25519 -v target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          echo "JAR file copied successfully"
 
-          # Copy Dockerfile
-          scp -i ~/.ssh/id_ed25519 Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          echo "Copying Dockerfile..."
+          scp -i ~/.ssh/id_ed25519 -v Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          echo "Dockerfile copied successfully"
+
+      - name: Check server files
+        run: |
+          echo "=== Checking files on server ==="
+          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
+            echo "Files in /root:"
+            ls -la /root/
+            echo "JAR file size:"
+            ls -lh /root/app.jar
+          '
 
       - name: Deploy using Docker
         run: |
           echo "=== Deploying to Production using Docker ==="
           echo "Deploying commit: ${{ github.sha }}"
+          echo "Host: ${{ secrets.PRODUCTION_HOST }}"
 
           ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
+            set -e  # Exit on any error
             cd /root
             
-            echo "Stopping existing container..."
-            docker stop ${{ env.APP_NAME }} 2>/dev/null || true
-            docker rm ${{ env.APP_NAME }} 2>/dev/null || true
+            echo "=== Step 1: Stopping existing container ==="
+            docker stop ${{ env.APP_NAME }} 2>/dev/null || echo "No existing container to stop"
+            docker rm ${{ env.APP_NAME }} 2>/dev/null || echo "No existing container to remove"
             
-            echo "Building new Docker image..."
-            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} .
+            echo "=== Step 2: Building new Docker image ==="
+            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} . || {
+              echo "❌ Docker build failed"
+              exit 1
+            }
             docker tag ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} ${{ env.APP_NAME }}:latest
+            echo "✅ Docker image built successfully"
             
-            echo "Starting new container with environment variables..."
+            echo "=== Step 3: Starting new container ==="
             docker run -d \
               --name ${{ env.APP_NAME }} \
               --restart unless-stopped \
@@ -184,15 +215,18 @@ jobs:
               -e SLACK_APP_NAME="${{ secrets.SLACK_APP_NAME }}" \
               -e SECURITY_USERNAME="${{ secrets.SECURITY_USERNAME }}" \
               -e SECURITY_PASSWORD="${{ secrets.SECURITY_PASSWORD }}" \
-              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}
+              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} || {
+                echo "❌ Docker run failed"
+                exit 1
+              }
             
-            echo "Cleaning up old images..."
+            echo "=== Step 4: Cleaning up old images ==="
             docker image prune -f
             
-            echo "Waiting for container to start..."
-            sleep 10
+            echo "=== Step 5: Waiting for container to start ==="
+            sleep 15
             
-            echo "Checking container status..."
+            echo "=== Step 6: Checking container status ==="
             if docker ps | grep -q ${{ env.APP_NAME }}; then
                 echo "✅ Container is running successfully!"
                 echo "Container ID: $(docker ps -q --filter name=${{ env.APP_NAME }})"
@@ -200,10 +234,13 @@ jobs:
             else
                 echo "❌ Container failed to start"
                 echo "Container logs:"
-                docker logs ${{ env.APP_NAME }}
+                docker logs ${{ env.APP_NAME }} || echo "No logs available"
                 exit 1
             fi
-          '
+          ' || {
+            echo "❌ Deployment failed"
+            exit 1
+          }
           echo "=== Production Deployment Completed ==="
 
       - name: Health Check
@@ -212,19 +249,33 @@ jobs:
           sleep 30
 
           for i in {1..5}; do
-            if curl -f http://${{ secrets.PRODUCTION_HOST }}:8080/actuator/health; then
-              echo "Health check passed!"
+            echo "Health check attempt $i..."
+            if curl -f -m 10 http://${{ secrets.PRODUCTION_HOST }}:8080/actuator/health; then
+              echo "✅ Health check passed!"
               break
             else
-              echo "Health check attempt $i failed, retrying..."
+              echo "❌ Health check attempt $i failed, retrying..."
               sleep 10
+            fi
+            
+            if [ $i -eq 5 ]; then
+              echo "❌ Health check failed after 5 attempts"
+              exit 1
             fi
           done
 
-          if [ $i -eq 5 ]; then
-            echo "Health check failed after 5 attempts"
-            exit 1
-          fi
+      - name: Debug - Check container logs on failure
+        if: failure()
+        run: |
+          echo "=== Debug: Checking container logs ==="
+          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
+            echo "Container status:"
+            docker ps -a | grep ${{ env.APP_NAME }} || echo "No container found"
+            echo "Container logs:"
+            docker logs ${{ env.APP_NAME }} || echo "No logs available"
+            echo "Docker images:"
+            docker images | grep ${{ env.APP_NAME }} || echo "No images found"
+          '
 
       - name: Notify Deployment Success
         if: success()
@@ -238,4 +289,4 @@ jobs:
         run: |
           echo "❌ Production deployment failed!"
           echo "Commit: ${{ github.sha }}"
-          echo "Please check the logs for more details."
+          echo "Please check the logs above for more details."
