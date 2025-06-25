@@ -77,10 +77,25 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Debug - Check files
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Target directory contents:"
+          ls -la target/
+          echo "Dockerfile exists:"
+          ls -la Dockerfile
+
+      - name: Debug - Test SSH connection
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
+
       - name: Copy files to server
         run: |
-          scp -i ~/.ssh/id_ed25519 target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
-          scp -i ~/.ssh/id_ed25519 Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          echo "Copying JAR file..."
+          scp -v -i ~/.ssh/id_ed25519 target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          echo "Copying Dockerfile..."
+          scp -v -i ~/.ssh/id_ed25519 Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          echo "Files copied successfully!"
 
       - name: Deploy using Docker
         run: |
