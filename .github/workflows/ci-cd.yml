@@ -88,14 +88,35 @@ jobs:
         run: |
           echo "Setting up SSH key..."
           mkdir -p ~/.ssh
-          echo "SSH key length: ${#PRODUCTION_SSH_KEY}"
-          echo "SSH key starts with: ${PRODUCTION_SSH_KEY:0:50}..."
-          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          echo "SSH key file created, checking format..."
-          ssh-keygen -l -f ~/.ssh/id_ed25519 || echo "SSH key format check failed"
+
+          # Check if the secret is properly set
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
+            echo "ERROR: PRODUCTION_SSH_KEY secret is empty!"
+            exit 1
+          fi
+
+          # Write the private key to file
+          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519_root
+          chmod 600 ~/.ssh/id_ed25519_root
+
+          # Verify the key was written correctly
+          if [ ! -s ~/.ssh/id_ed25519_root ]; then
+            echo "ERROR: SSH key file is empty!"
+            exit 1
+          fi
+
+          echo "SSH key file created successfully"
+          echo "Key file size: $(wc -c < ~/.ssh/id_ed25519_root) bytes"
+
+          # Test the key format
+          ssh-keygen -l -f ~/.ssh/id_ed25519_root || {
+            echo "ERROR: Invalid SSH key format!"
+            exit 1
+          }
+
+          # Add host to known_hosts
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
-          echo "SSH setup completed"
+          echo "SSH setup completed successfully"
 
       - name: Debug - Check files
         run: |
@@ -107,19 +128,19 @@ jobs:
 
       - name: Debug - Test SSH connection
         run: |
-          ssh -i ~/.ssh/id_ed25519 -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
+          ssh -i ~/.ssh/id_ed25519_root -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
 
       - name: Copy files to server
         run: |
           echo "Copying JAR file..."
-          scp -v -i ~/.ssh/id_ed25519 target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          scp -v -i ~/.ssh/id_ed25519_root target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
           echo "Copying Dockerfile..."
-          scp -v -i ~/.ssh/id_ed25519 Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          scp -v -i ~/.ssh/id_ed25519_root Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
           echo "Files copied successfully!"
 
       - name: Deploy using Docker
         run: |
-          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
+          ssh -i ~/.ssh/id_ed25519_root root@${{ secrets.PRODUCTION_HOST }} '
             cd /root
             
             docker stop ${{ env.APP_NAME }} 2>/dev/null || true
