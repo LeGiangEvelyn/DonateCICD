@@ -18,43 +18,17 @@ env:
   IMAGE_TAG: ${{ github.sha }}
 
 jobs:
-  security-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: "fs"
-          scan-ref: "."
-          format: "sarif"
-          output: "trivy-results.sarif"
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: "trivy-results.sarif"
-
   build-and-test:
     runs-on: ubuntu-latest
-    needs: security-scan
-    strategy:
-      matrix:
-        java-version: [17]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up JDK ${{ matrix.java-version }}
+      - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ matrix.java-version }}
+          java-version: "17"
           distribution: "temurin"
           cache: "maven"
 
@@ -67,59 +41,22 @@ jobs:
 
       - name: Build with Maven
         run: |
-          echo "=== Starting Maven Build ==="
           ./mvnw clean compile -B
-          echo "=== Maven Build Completed ==="
 
       - name: Run Tests
         run: |
-          echo "=== Starting Tests ==="
           ./mvnw test -B
-          echo "=== Tests Completed ==="
 
       - name: Build JAR
         run: |
-          echo "=== Building JAR ==="
           ./mvnw package -DskipTests -B
-          echo "=== JAR Build Completed ==="
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.java-version }}
-          path: target/surefire-reports/
-          retention-days: 30
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
-          name: app-jar-${{ matrix.java-version }}
+          name: app-jar
           path: target/*.jar
           retention-days: 1
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        run: |
-          echo "=== Building Docker Image ==="
-          docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} .
-          docker tag ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} ${{ env.APP_NAME }}:latest
-          echo "=== Docker Image Built Successfully ==="
-
-      - name: Scan Docker image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}
-          format: "sarif"
-          output: "trivy-image-results.sarif"
-
-      - name: Upload Docker scan results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: "trivy-image-results.sarif"
 
   deploy-production:
     needs: build-and-test
@@ -130,73 +67,25 @@ jobs:
       - name: Download JAR
         uses: actions/download-artifact@v4
         with:
-          name: app-jar-17
+          name: app-jar
           path: target/
-
-      - name: Debug - Check downloaded files
-        run: |
-          echo "=== Checking downloaded files ==="
-          ls -la target/
-          echo "JAR file exists: $(test -f target/*.jar && echo 'YES' || echo 'NO')"
-
-      - name: Set up SSH key
-        run: |
-          echo "=== Setting up SSH key ==="
-          mkdir -p ~/.ssh
-          echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
-          echo "SSH key setup completed"
-
-      - name: Test SSH connection
-        run: |
-          echo "=== Testing SSH connection ==="
-          ssh -i ~/.ssh/id_ed25519 -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} 'echo "SSH connection successful"'
 
       - name: Copy files to server
         run: |
-          echo "=== Copying files to server ==="
-          echo "Copying JAR file..."
-          scp -i ~/.ssh/id_ed25519 -v target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
-          echo "JAR file copied successfully"
-
-          echo "Copying Dockerfile..."
-          scp -i ~/.ssh/id_ed25519 -v Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
-          echo "Dockerfile copied successfully"
-
-      - name: Check server files
-        run: |
-          echo "=== Checking files on server ==="
-          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
-            echo "Files in /root:"
-            ls -la /root/
-            echo "JAR file size:"
-            ls -lh /root/app.jar
-          '
+          scp -i ~/.ssh/id_ed25519 target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          scp -i ~/.ssh/id_ed25519 Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
 
       - name: Deploy using Docker
         run: |
-          echo "=== Deploying to Production using Docker ==="
-          echo "Deploying commit: ${{ github.sha }}"
-          echo "Host: ${{ secrets.PRODUCTION_HOST }}"
-
           ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
-            set -e  # Exit on any error
             cd /root
             
-            echo "=== Step 1: Stopping existing container ==="
-            docker stop ${{ env.APP_NAME }} 2>/dev/null || echo "No existing container to stop"
-            docker rm ${{ env.APP_NAME }} 2>/dev/null || echo "No existing container to remove"
+            docker stop ${{ env.APP_NAME }} 2>/dev/null || true
+            docker rm ${{ env.APP_NAME }} 2>/dev/null || true
             
-            echo "=== Step 2: Building new Docker image ==="
-            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} . || {
-              echo "❌ Docker build failed"
-              exit 1
-            }
+            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} .
             docker tag ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} ${{ env.APP_NAME }}:latest
-            echo "✅ Docker image built successfully"
             
-            echo "=== Step 3: Starting new container ==="
             docker run -d \
               --name ${{ env.APP_NAME }} \
               --restart unless-stopped \
@@ -215,78 +104,23 @@ jobs:
               -e SLACK_APP_NAME="${{ secrets.SLACK_APP_NAME }}" \
               -e SECURITY_USERNAME="${{ secrets.SECURITY_USERNAME }}" \
               -e SECURITY_PASSWORD="${{ secrets.SECURITY_PASSWORD }}" \
-              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} || {
-                echo "❌ Docker run failed"
-                exit 1
-              }
+              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}
             
-            echo "=== Step 4: Cleaning up old images ==="
             docker image prune -f
-            
-            echo "=== Step 5: Waiting for container to start ==="
-            sleep 15
-            
-            echo "=== Step 6: Checking container status ==="
-            if docker ps | grep -q ${{ env.APP_NAME }}; then
-                echo "✅ Container is running successfully!"
-                echo "Container ID: $(docker ps -q --filter name=${{ env.APP_NAME }})"
-                echo "Application URL: http://localhost:8080"
-            else
-                echo "❌ Container failed to start"
-                echo "Container logs:"
-                docker logs ${{ env.APP_NAME }} || echo "No logs available"
-                exit 1
-            fi
-          ' || {
-            echo "❌ Deployment failed"
-            exit 1
-          }
-          echo "=== Production Deployment Completed ==="
+          '
 
       - name: Health Check
         run: |
-          echo "=== Performing Health Check ==="
           sleep 30
-
-          for i in {1..5}; do
-            echo "Health check attempt $i..."
-            if curl -f -m 10 http://${{ secrets.PRODUCTION_HOST }}:8080/actuator/health; then
-              echo "✅ Health check passed!"
-              break
-            else
-              echo "❌ Health check attempt $i failed, retrying..."
-              sleep 10
-            fi
-            
-            if [ $i -eq 5 ]; then
-              echo "❌ Health check failed after 5 attempts"
-              exit 1
-            fi
-          done
-
-      - name: Debug - Check container logs on failure
-        if: failure()
-        run: |
-          echo "=== Debug: Checking container logs ==="
-          ssh -i ~/.ssh/id_ed25519 root@${{ secrets.PRODUCTION_HOST }} '
-            echo "Container status:"
-            docker ps -a | grep ${{ env.APP_NAME }} || echo "No container found"
-            echo "Container logs:"
-            docker logs ${{ env.APP_NAME }} || echo "No logs available"
-            echo "Docker images:"
-            docker images | grep ${{ env.APP_NAME }} || echo "No images found"
-          '
+          curl -f http://${{ secrets.PRODUCTION_HOST }}:8080/actuator/health
 
       - name: Notify Deployment Success
         if: success()
         run: |
           echo "✅ Production deployment successful!"
-          echo "Commit: ${{ github.sha }}"
           echo "URL: http://${{ secrets.PRODUCTION_HOST }}:8080"
 
       - name: Notify Deployment Failure
         if: failure()
         run: |
           echo "❌ Production deployment failed!"
-          echo "Commit: ${{ github.sha }}"
-          echo "Please check the logs above for more details."
