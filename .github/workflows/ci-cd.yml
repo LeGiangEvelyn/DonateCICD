@@ -70,12 +70,32 @@ jobs:
           name: app-jar
           path: target/
 
+      - name: Check secrets availability
+        run: |
+          echo "Checking if secrets are available..."
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
+            echo "ERROR: PRODUCTION_SSH_KEY is empty or not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
+            echo "ERROR: PRODUCTION_HOST is empty or not set"
+            exit 1
+          fi
+          echo "PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}"
+          echo "SSH key is set (length: ${#PRODUCTION_SSH_KEY})"
+
       - name: Set up SSH key
         run: |
+          echo "Setting up SSH key..."
           mkdir -p ~/.ssh
+          echo "SSH key length: ${#PRODUCTION_SSH_KEY}"
+          echo "SSH key starts with: ${PRODUCTION_SSH_KEY:0:50}..."
           echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
+          echo "SSH key file created, checking format..."
+          ssh-keygen -l -f ~/.ssh/id_ed25519 || echo "SSH key format check failed"
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+          echo "SSH setup completed"
 
       - name: Debug - Check files
         run: |
