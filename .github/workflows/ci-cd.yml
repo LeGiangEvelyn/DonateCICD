@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+# Add permissions to fix resource access issues
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+  id-token: write
+
 env:
   APP_NAME: donate-app
   IMAGE_TAG: ${{ github.sha }}
