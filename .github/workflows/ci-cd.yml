@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# Add permissions to fix resource access issues
 permissions:
   contents: read
   actions: read
@@ -40,16 +39,13 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
 
       - name: Build with Maven
-        run: |
-          ./mvnw clean compile -B
+        run: ./mvnw clean compile -B
 
       - name: Run Tests
-        run: |
-          ./mvnw test -B
+        run: ./mvnw test -B
 
       - name: Build JAR
-        run: |
-          ./mvnw package -DskipTests -B
+        run: ./mvnw package -DskipTests -B
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
@@ -70,123 +66,36 @@ jobs:
           name: app-jar
           path: target/
 
-      - name: Check if PRODUCTION_SSH_KEY is set
+      # Check all required secrets
+      - name: Check required secrets
         run: |
-          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
-            echo "❌ PRODUCTION_SSH_KEY is empty or not set"
-            exit 1
-          else
-            echo "✅ PRODUCTION_SSH_KEY is set"
-          fi
-
-      - name: Check if PRODUCTION_HOST is set
-        run: |
-          if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
-            echo "❌ PRODUCTION_HOST is empty or not set"
-            exit 1
-          else
-            echo "✅ PRODUCTION_HOST is set: ${{ secrets.PRODUCTION_HOST }}"
-          fi
-
-      - name: Check if JDBC_DATABASE_URL is set
-        run: |
-          if [ -z "${{ secrets.JDBC_DATABASE_URL }}" ]; then
-            echo "❌ JDBC_DATABASE_URL is empty or not set"
-            exit 1
-          else
-            echo "✅ JDBC_DATABASE_URL is set"
-          fi
-
-      - name: Check if JDBC_DATABASE_USERNAME is set
-        run: |
-          if [ -z "${{ secrets.JDBC_DATABASE_USERNAME }}" ]; then
-            echo "❌ JDBC_DATABASE_USERNAME is empty or not set"
-            exit 1
-          else
-            echo "✅ JDBC_DATABASE_USERNAME is set"
-          fi
-
-      - name: Check if JDBC_DATABASE_PASSWORD is set
-        run: |
-          if [ -z "${{ secrets.JDBC_DATABASE_PASSWORD }}" ]; then
-            echo "❌ JDBC_DATABASE_PASSWORD is empty or not set"
-            exit 1
-          else
-            echo "✅ JDBC_DATABASE_PASSWORD is set"
-          fi
-
-      - name: Check if SLACK_BOT_TOKEN is set
-        run: |
-          if [ -z "${{ secrets.SLACK_BOT_TOKEN }}" ]; then
-            echo "❌ SLACK_BOT_TOKEN is empty or not set"
-            exit 1
-          else
-            echo "✅ SLACK_BOT_TOKEN is set"
-          fi
-
-      - name: Check if SLACK_SIGNING_SECRET is set
-        run: |
-          if [ -z "${{ secrets.SLACK_SIGNING_SECRET }}" ]; then
-            echo "❌ SLACK_SIGNING_SECRET is empty or not set"
-            exit 1
-          else
-            echo "✅ SLACK_SIGNING_SECRET is set"
-          fi
-
-      - name: Check if SLACK_APP_TOKEN is set
-        run: |
-          if [ -z "${{ secrets.SLACK_APP_TOKEN }}" ]; then
-            echo "❌ SLACK_APP_TOKEN is empty or not set"
-            exit 1
-          else
-            echo "✅ SLACK_APP_TOKEN is set"
-          fi
-
-      - name: Check secrets availability
-        run: |
-          echo "Checking if secrets are available..."
-          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
-            echo "ERROR: PRODUCTION_SSH_KEY is empty or not set"
-            exit 1
-          fi
-          if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
-            echo "ERROR: PRODUCTION_HOST is empty or not set"
-            exit 1
-          fi
-          echo "PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}"
-          echo "SSH key is set (length: ${#PRODUCTION_SSH_KEY})"
+          for secret in PRODUCTION_SSH_KEY PRODUCTION_HOST JDBC_DATABASE_URL JDBC_DATABASE_USERNAME JDBC_DATABASE_PASSWORD SLACK_BOT_TOKEN SLACK_SIGNING_SECRET SLACK_APP_TOKEN; do
+            if [ -z "${!secret}" ]; then
+              echo "❌ $secret is empty or not set"
+              exit 1
+            else
+              echo "✅ $secret is set"
+            fi
+          done
 
       - name: Set up SSH key
         run: |
+          set -e
           echo "Setting up SSH key..."
           mkdir -p ~/.ssh
-
-          # Check if the secret is properly set
           if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
             echo "ERROR: PRODUCTION_SSH_KEY secret is empty!"
             exit 1
           fi
-
-          # Write the private key to file
           echo "${{ secrets.PRODUCTION_SSH_KEY }}" > ~/.ssh/id_ed25519_root
           chmod 600 ~/.ssh/id_ed25519_root
-
-          # Verify the key was written correctly
           if [ ! -s ~/.ssh/id_ed25519_root ]; then
             echo "ERROR: SSH key file is empty!"
             exit 1
           fi
-
           echo "SSH key file created successfully"
           echo "Key file size: $(wc -c < ~/.ssh/id_ed25519_root) bytes"
-
-          # Test the key format
-          ssh-keygen -l -f ~/.ssh/id_ed25519_root || {
-            echo "ERROR: Invalid SSH key format!"
-            exit 1
-          }
-
-          # Add host to known_hosts
+          ssh-keygen -l -f ~/.ssh/id_ed25519_root || { echo "ERROR: Invalid SSH key format!"; exit 1; }
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
           echo "SSH setup completed successfully"
 
@@ -196,31 +105,35 @@ jobs:
           echo "Target directory contents:"
           ls -la target/
           echo "Dockerfile exists:"
-          ls -la Dockerfile
+          ls -la Dockerfile || echo "Dockerfile not found"
 
       - name: Debug - Test SSH connection
         run: |
-          ssh -i ~/.ssh/id_ed25519_root -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'"
+          set -e
+          ssh -vvv -i ~/.ssh/id_ed25519_root -o ConnectTimeout=10 root@${{ secrets.PRODUCTION_HOST }} "echo 'SSH connection successful'" || { echo "SSH connection failed!"; exit 1; }
 
       - name: Copy files to server
         run: |
+          set -e
           echo "Copying JAR file..."
-          scp -v -i ~/.ssh/id_ed25519_root target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar
+          scp -vvv -i ~/.ssh/id_ed25519_root target/*.jar root@${{ secrets.PRODUCTION_HOST }}:/root/app.jar || { echo "SCP JAR failed!"; exit 1; }
           echo "Copying Dockerfile..."
-          scp -v -i ~/.ssh/id_ed25519_root Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/
+          scp -vvv -i ~/.ssh/id_ed25519_root Dockerfile root@${{ secrets.PRODUCTION_HOST }}:/root/ || { echo "SCP Dockerfile failed!"; exit 1; }
           echo "Files copied successfully!"
 
       - name: Deploy using Docker
         run: |
-          ssh -i ~/.ssh/id_ed25519_root root@${{ secrets.PRODUCTION_HOST }} '
+          set -e
+          ssh -vvv -i ~/.ssh/id_ed25519_root root@${{ secrets.PRODUCTION_HOST }} '
+            set -ex
             cd /root
-            
+
             docker stop ${{ env.APP_NAME }} 2>/dev/null || true
             docker rm ${{ env.APP_NAME }} 2>/dev/null || true
-            
-            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} .
+
+            docker build -t ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} . || { echo "Docker build failed!"; exit 1; }
             docker tag ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} ${{ env.APP_NAME }}:latest
-            
+
             docker run -d \
               --name ${{ env.APP_NAME }} \
               --restart unless-stopped \
@@ -239,10 +152,9 @@ jobs:
               -e SLACK_APP_NAME="${{ secrets.SLACK_APP_NAME }}" \
               -e SECURITY_USERNAME="${{ secrets.SECURITY_USERNAME }}" \
               -e SECURITY_PASSWORD="${{ secrets.SECURITY_PASSWORD }}" \
-              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}
-            
+              ${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} || { echo "Docker run failed!"; exit 1; }
             docker image prune -f
-          '
+          ' || { echo "Remote deploy failed!"; exit 1; }
 
       - name: Health Check
         run: |
