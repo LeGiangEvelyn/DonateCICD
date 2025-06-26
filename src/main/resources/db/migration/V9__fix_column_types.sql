@@ -6,7 +6,7 @@ ALTER TABLE IF EXISTS transactions DROP CONSTRAINT IF EXISTS fk_transactions_sen
 ALTER TABLE IF EXISTS transactions DROP CONSTRAINT IF EXISTS fk_transactions_recipient;
 
 -- Drop primary key constraint
-ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_pkey;
+ALTER TABLE IF EXISTS users DROP CONSTRAINT IF EXISTS users_pkey CASCADE;
 
 -- Change column types
 ALTER TABLE users ALTER COLUMN id TYPE VARCHAR(255);

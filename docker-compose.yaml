@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app:
+    image: donate-app:latest
+    container_name: donate-app
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET}
+      SLACK_APP_TOKEN: ${SLACK_APP_TOKEN}
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/postgres
+      JDBC_DATABASE_USERNAME: postgres
+      JDBC_DATABASE_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    networks:
+      - bridge
+
+networks:
+  bridge:
+    external: true
+    name: bridge
