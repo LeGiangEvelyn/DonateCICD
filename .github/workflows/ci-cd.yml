@@ -70,6 +70,78 @@ jobs:
           name: app-jar
           path: target/
 
+      - name: Check if PRODUCTION_SSH_KEY is set
+        run: |
+          if [ -z "${{ secrets.PRODUCTION_SSH_KEY }}" ]; then
+            echo "❌ PRODUCTION_SSH_KEY is empty or not set"
+            exit 1
+          else
+            echo "✅ PRODUCTION_SSH_KEY is set"
+          fi
+
+      - name: Check if PRODUCTION_HOST is set
+        run: |
+          if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
+            echo "❌ PRODUCTION_HOST is empty or not set"
+            exit 1
+          else
+            echo "✅ PRODUCTION_HOST is set: ${{ secrets.PRODUCTION_HOST }}"
+          fi
+
+      - name: Check if JDBC_DATABASE_URL is set
+        run: |
+          if [ -z "${{ secrets.JDBC_DATABASE_URL }}" ]; then
+            echo "❌ JDBC_DATABASE_URL is empty or not set"
+            exit 1
+          else
+            echo "✅ JDBC_DATABASE_URL is set"
+          fi
+
+      - name: Check if JDBC_DATABASE_USERNAME is set
+        run: |
+          if [ -z "${{ secrets.JDBC_DATABASE_USERNAME }}" ]; then
+            echo "❌ JDBC_DATABASE_USERNAME is empty or not set"
+            exit 1
+          else
+            echo "✅ JDBC_DATABASE_USERNAME is set"
+          fi
+
+      - name: Check if JDBC_DATABASE_PASSWORD is set
+        run: |
+          if [ -z "${{ secrets.JDBC_DATABASE_PASSWORD }}" ]; then
+            echo "❌ JDBC_DATABASE_PASSWORD is empty or not set"
+            exit 1
+          else
+            echo "✅ JDBC_DATABASE_PASSWORD is set"
+          fi
+
+      - name: Check if SLACK_BOT_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.SLACK_BOT_TOKEN }}" ]; then
+            echo "❌ SLACK_BOT_TOKEN is empty or not set"
+            exit 1
+          else
+            echo "✅ SLACK_BOT_TOKEN is set"
+          fi
+
+      - name: Check if SLACK_SIGNING_SECRET is set
+        run: |
+          if [ -z "${{ secrets.SLACK_SIGNING_SECRET }}" ]; then
+            echo "❌ SLACK_SIGNING_SECRET is empty or not set"
+            exit 1
+          else
+            echo "✅ SLACK_SIGNING_SECRET is set"
+          fi
+
+      - name: Check if SLACK_APP_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.SLACK_APP_TOKEN }}" ]; then
+            echo "❌ SLACK_APP_TOKEN is empty or not set"
+            exit 1
+          else
+            echo "✅ SLACK_APP_TOKEN is set"
+          fi
+
       - name: Check secrets availability
         run: |
           echo "Checking if secrets are available..."
