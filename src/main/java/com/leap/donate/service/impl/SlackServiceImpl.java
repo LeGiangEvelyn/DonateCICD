@@ -3,6 +3,7 @@ package com.leap.donate.service.impl;
 import com.leap.donate.model.User;
 import com.leap.donate.service.SlackService;
 import com.leap.donate.service.UserService;
+import com.leap.donate.service.utils.JsonUtils;
 import com.slack.api.Slack;
 import com.slack.api.app_backend.slash_commands.response.SlashCommandResponse;
 import com.slack.api.methods.MethodsClient;
@@ -21,6 +22,7 @@ import com.slack.api.model.ConversationType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.json.JsonParser;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -100,7 +102,7 @@ public class SlackServiceImpl implements SlackService {
                 .findFirst();
         
         if (existingChannel.isPresent()) {
-            log.debug("Donate channel already exists with ID: {}", existingChannel.get().getId());
+            log.debug("Donate channel already exists with ID and name: {}", existingChannel.get().getId(), donateChannelName);
             return existingChannel.get().getId();
         }
         
@@ -128,6 +130,8 @@ public class SlackServiceImpl implements SlackService {
         // Get all users from Slack
         List<com.slack.api.model.User> slackUsers = methods.usersList(UsersListRequest.builder().build())
             .getMembers();
+
+        log.debug("Slack users: ", JsonUtils.toJson(slackUsers));
         
         // Get all users from our database
         List<User> dbUsers = userService.getAllUsers();
