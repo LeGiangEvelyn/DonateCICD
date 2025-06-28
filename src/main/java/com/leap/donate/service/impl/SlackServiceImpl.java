@@ -141,7 +141,7 @@ public class SlackServiceImpl implements SlackService {
             slackUsers = Collections.emptyList();
         }
 
-        log.debug("Slack users: {}", JsonUtils.toJson(slackUsers));
+        log.debug("Slack users : {}", JsonUtils.toJson(slackUsers));
         
         // Get all users from our database
         List<User> dbUsers = userService.getAllUsers();
