@@ -128,10 +128,20 @@ public class SlackServiceImpl implements SlackService {
         MethodsClient methods = slack.methods(botToken);
         
         // Get all users from Slack
-        List<com.slack.api.model.User> slackUsers = methods.usersList(UsersListRequest.builder().build())
-            .getMembers();
+        UsersListResponse usersResponse = methods.usersList(UsersListRequest.builder().build());
+        
+        if (!usersResponse.isOk()) {
+            log.error("Failed to get users: {}", usersResponse.getError());
+            throw new RuntimeException("Failed to get users: " + usersResponse.getError());
+        }
+        
+        List<com.slack.api.model.User> slackUsers = usersResponse.getMembers();
+        if (slackUsers == null) {
+            log.warn("Received null users list from Slack API");
+            slackUsers = Collections.emptyList();
+        }
 
-        log.debug("Slack users: ", JsonUtils.toJson(slackUsers));
+        log.debug("Slack users: {}", JsonUtils.toJson(slackUsers));
         
         // Get all users from our database
         List<User> dbUsers = userService.getAllUsers();
