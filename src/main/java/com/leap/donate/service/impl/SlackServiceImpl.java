@@ -81,7 +81,7 @@ public class SlackServiceImpl implements SlackService {
 
     @Override
     public String createOrGetDonateChannel() throws IOException, SlackApiException {
-        log.debug("Creating or getting donate channel");
+        log.debug("Creating or getting donate channel: " + donateChannelName);
         MethodsClient methods = slack.methods(botToken);
         
         // Check if channel already exists
